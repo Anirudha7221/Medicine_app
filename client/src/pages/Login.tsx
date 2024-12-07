@@ -1,6 +1,7 @@
 import React, {useState} from 'react';
 import { useHistory } from 'react-router-dom';
 import './Login.css?v=1'; 
+import axios from 'axios';
 
 const Login: React.FC = () => {
 
@@ -12,6 +13,14 @@ const Login: React.FC = () => {
     e.preventDefault();
     history.push('/admin');
   };
+
+  axios.post('/login', { email, password })
+    .then(response => {
+        localStorage.setItem('token', response.data.token);
+    })
+    .catch(err => {
+        console.error(err.response?.data?.message || 'Login failed');
+    });
 
  return(
       <div className="login-container">

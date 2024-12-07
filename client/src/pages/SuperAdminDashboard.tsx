@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { IonContent, IonPage, IonLabel, IonButton, IonItem, IonInput, IonList, IonRow, IonCol } from '@ionic/react';
-import { useHistory } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { IonContent, IonPage, IonButton, IonRow, IonCol, IonGrid, IonSpinner } from '@ionic/react';
+import { useIonRouter } from '@ionic/react';
+import axios from 'axios';
 import './AdminDashboard.css';
 
 interface Log {
@@ -11,25 +12,46 @@ interface Log {
 }
 
 const SuperAdminDashboard: React.FC = () => {
-  const [logs, setLogs] = useState<Log[]>([
-    { patient: 'John Doe', medicine: 'Aspirin', time: '08:00 AM', status: 'Taken' },
-    { patient: 'Jane Smith', medicine: 'Ibuprofen', time: '09:00 AM', status: 'Not Taken' },
-  ]);
-
+  const [logs, setLogs] = useState<Log[]>([]);
   const [filter, setFilter] = useState<string>('');
-  const history = useHistory();
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useIonRouter();
 
-  const filteredLogs = logs.filter(log => log.patient.toLowerCase().includes(filter.toLowerCase()));
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('jwtToken'); // Retrieve JWT from storage
+      const response = await axios.get('/dashboard', {
+        headers: {
+          Authorization: `Bearer ${token}`, // Send token in the Authorization header
+        },
+      });
+      setLogs(response.data.logs); // Assuming API returns logs as part of the response
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Failed to fetch data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const handleNavigateToSchedule = () => {
-    history.push('/schedule'); // Navigate to the MedicineSchedule page
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const filteredLogs = logs.filter((log) =>
+    log.patient.toLowerCase().includes(filter.toLowerCase())
+  );
+
+  const navigateToSchedule = () => {
+    router.push('/schedule', 'forward');
   };
 
   return (
     <IonPage>
       <IonContent className="container">
         <div className="filter-item">
-          <label className="filter-label">Filter by Patient Name</label>
+          <label htmlFor="filter" className="filter-label">Filter by Patient Name</label>
           <input
             type="text"
             id="filter"
@@ -40,28 +62,45 @@ const SuperAdminDashboard: React.FC = () => {
           />
         </div>
 
-        <IonRow>
-          <IonCol>
-            <IonButton onClick={handleNavigateToSchedule} className='medicine-btn'>Go to Medicine</IonButton>
-          </IonCol>
-        </IonRow>
+        <IonButton expand="block" className="medicine-btn" onClick={navigateToSchedule}>
+          Go to Medicine Schedule
+        </IonButton>
 
-        <IonRow class='table'>
-          <IonCol class='th'><strong>Patient</strong></IonCol>
-          <IonCol class='th'><strong>Medicine</strong></IonCol>
-          <IonCol class='th'><strong>Time</strong></IonCol>
-          <IonCol class='th'><strong>Status</strong></IonCol>
-        </IonRow>
-        {filteredLogs.map((log, index) => (
-          <IonRow key={index} class='tr'>
-            <IonCol class='td'>{log.patient}</IonCol>
-            <IonCol class='td'>{log.medicine}</IonCol>
-            <IonCol class='td'>{log.time}</IonCol>
-            <IonCol class='td'>{log.status}</IonCol>
-          </IonRow>
-        ))}
-    </IonContent>
-  </IonPage>
+        {loading ? (
+          <div className="loading">
+            <IonSpinner name="crescent" />
+            <p>Loading data...</p>
+          </div>
+        ) : error ? (
+          <div className="error">
+            <p>{error}</p>
+          </div>
+        ) : (
+          <IonGrid>
+            <IonRow className="table-header">
+              <IonCol><strong>Patient</strong></IonCol>
+              <IonCol><strong>Medicine</strong></IonCol>
+              <IonCol><strong>Time</strong></IonCol>
+              <IonCol><strong>Status</strong></IonCol>
+            </IonRow>
+            {filteredLogs.length > 0 ? (
+              filteredLogs.map((log, index) => (
+                <IonRow key={index} className="table-row">
+                  <IonCol>{log.patient}</IonCol>
+                  <IonCol>{log.medicine}</IonCol>
+                  <IonCol>{log.time}</IonCol>
+                  <IonCol>{log.status}</IonCol>
+                </IonRow>
+              ))
+            ) : (
+              <IonRow>
+                <IonCol>No logs available.</IonCol>
+              </IonRow>
+            )}
+          </IonGrid>
+        )}
+      </IonContent>
+    </IonPage>
   );
 };
 
